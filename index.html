@@ -12,8 +12,11 @@
             background-color: #f5f5f5;
         }
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
             background-color: white;
             padding: 20px;
             border-radius: 8px;
@@ -21,11 +24,14 @@
         }
         h1 {
             color: #333;
-            margin-bottom: 20px;
+            margin: 0 0 20px 0;
         }
         #column-plot {
-            width: 100%;
-            height: 600px;
+            position: absolute;
+            top: 70px;  /* Space for heading */
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
         }
         .error {
             color: #dc3545;
@@ -44,8 +50,8 @@
 
     <script>
         function createColumnPlot(data, {
-            width = 1100,
-            height = 600,
+            width,
+            height,
             margin = { top: 40, right: 40, bottom: 40, left: 60 },
             container = '#column-plot'
         } = {}) {
@@ -60,7 +66,7 @@
             const innerHeight = height - margin.top - margin.bottom;
             
             // Calculate column width
-            const columnWidth = innerWidth / 24;  // Always 24 columns
+            const columnWidth = innerWidth / 24;
 
             // Create SVG container
             const svg = d3.select(container)
@@ -70,8 +76,20 @@
                 .append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
 
-            // Find the extent of values
-            const allValues = last24.flat();
+            // Background for error columns
+            last24.forEach((column, columnIndex) => {
+                if (column.includes("0/0")) {
+                    svg.append('rect')
+                        .attr('x', columnIndex * columnWidth)
+                        .attr('y', 0)
+                        .attr('width', columnWidth)
+                        .attr('height', innerHeight)
+                        .attr('fill', '#ffebee');
+                }
+            });
+
+            // Find the extent of values (excluding "0/0")
+            const allValues = last24.flat().filter(v => v !== "0/0").map(Number);
             const valueExtent = d3.extent(allValues);
             
             // Create scale for y-axis
@@ -81,9 +99,17 @@
 
             // For each column of data
             last24.forEach((column, columnIndex) => {
+                // Skip columns with "0/0"
+                if (column.includes("0/0")) {
+                    return;
+                }
+
+                // Convert strings to numbers for calculations
+                const numericColumn = column.map(Number);
+                
                 // Calculate statistics
-                const mean = d3.mean(column);
-                const sortedValues = [...column].sort((a, b) => a - b);
+                const mean = d3.mean(numericColumn);
+                const sortedValues = [...numericColumn].sort((a, b) => a - b);
                 const q1 = d3.quantile(sortedValues, 0.25);
                 const q3 = d3.quantile(sortedValues, 0.75);
                 const min = sortedValues[0];
@@ -185,12 +211,12 @@
             }
         }
 
-        // Update chart
+        // Update chart with container dimensions
         function updateChart(data) {
-            createColumnPlot(data, {
-                width: document.getElementById('column-plot').offsetWidth,
-                height: 600
-            });
+            const container = document.getElementById('column-plot');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            createColumnPlot(data, { width, height });
         }
 
         // Handle window resize
