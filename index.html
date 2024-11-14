@@ -28,7 +28,7 @@
         }
         #column-plot {
             position: absolute;
-            top: 70px;  /* Space for heading */
+            top: 70px;
             left: 20px;
             right: 20px;
             bottom: 20px;
@@ -76,18 +76,6 @@
                 .append('g')
                 .attr('transform', `translate(${margin.left},${margin.top})`);
 
-            // Background for error columns
-            last24.forEach((column, columnIndex) => {
-                if (column.includes("0/0")) {
-                    svg.append('rect')
-                        .attr('x', columnIndex * columnWidth)
-                        .attr('y', 0)
-                        .attr('width', columnWidth)
-                        .attr('height', innerHeight)
-                        .attr('fill', '#ffebee');
-                }
-            });
-
             // Find the extent of values (excluding "0/0")
             const allValues = last24.flat().filter(v => v !== "0/0").map(Number);
             const valueExtent = d3.extent(allValues);
@@ -97,56 +85,88 @@
                 .domain([valueExtent[0] - 1, valueExtent[1] + 1])
                 .range([innerHeight, 0]);
 
-            // For each column of data
+            // First pass: Draw data columns
             last24.forEach((column, columnIndex) => {
-                // Skip columns with "0/0"
-                if (column.includes("0/0")) {
-                    return;
+                if (!column.includes("0/0")) {
+                    // Convert strings to numbers for calculations
+                    const numericColumn = column.map(Number);
+                    
+                    // Calculate statistics
+                    const mean = d3.mean(numericColumn);
+                    const sortedValues = [...numericColumn].sort((a, b) => a - b);
+                    const q1 = d3.quantile(sortedValues, 0.25);
+                    const q3 = d3.quantile(sortedValues, 0.75);
+                    const min = sortedValues[0];
+                    const max = sortedValues[sortedValues.length - 1];
+                    
+                    // Draw lower quartile (0-25%)
+                    svg.append('rect')
+                        .attr('x', columnIndex * columnWidth)
+                        .attr('y', yScale(q1))
+                        .attr('width', columnWidth)
+                        .attr('height', yScale(min) - yScale(q1))
+                        .attr('fill', '#e0e0e0');
+
+                    // Draw upper quartile (75-100%)
+                    svg.append('rect')
+                        .attr('x', columnIndex * columnWidth)
+                        .attr('y', yScale(max))
+                        .attr('width', columnWidth)
+                        .attr('height', yScale(q3) - yScale(max))
+                        .attr('fill', '#e0e0e0');
+
+                    // Draw IQR rectangle (25-75%)
+                    svg.append('rect')
+                        .attr('x', columnIndex * columnWidth)
+                        .attr('y', yScale(q3))
+                        .attr('width', columnWidth)
+                        .attr('height', yScale(q1) - yScale(q3))
+                        .attr('fill', '#999999');
+
+                    // Draw mean line
+                    svg.append('line')
+                        .attr('x1', columnIndex * columnWidth)
+                        .attr('x2', (columnIndex + 1) * columnWidth)
+                        .attr('y1', yScale(mean))
+                        .attr('y2', yScale(mean))
+                        .attr('stroke', '#007bff')
+                        .attr('stroke-width', 2);
                 }
+            });
 
-                // Convert strings to numbers for calculations
-                const numericColumn = column.map(Number);
-                
-                // Calculate statistics
-                const mean = d3.mean(numericColumn);
-                const sortedValues = [...numericColumn].sort((a, b) => a - b);
-                const q1 = d3.quantile(sortedValues, 0.25);
-                const q3 = d3.quantile(sortedValues, 0.75);
-                const min = sortedValues[0];
-                const max = sortedValues[sortedValues.length - 1];
-                
-                // Draw lower quartile (0-25%)
-                svg.append('rect')
-                    .attr('x', columnIndex * columnWidth)
-                    .attr('y', yScale(q1))
-                    .attr('width', columnWidth)
-                    .attr('height', yScale(min) - yScale(q1))
-                    .attr('fill', '#e0e0e0');
+            // Second pass: Draw error overlays
+            last24.forEach((column, columnIndex) => {
+                if (column.includes("0/0")) {
+                    const validValues = column.filter(v => v !== "0/0").map(Number);
+                    if (validValues.length > 0) {
+                        // If there are valid values, draw error tint to match their extent
+                        const columnExtent = d3.extent(validValues);
+                        svg.append('rect')
+                            .attr('x', columnIndex * columnWidth)
+                            .attr('y', yScale(columnExtent[1]))
+                            .attr('width', columnWidth)
+                            .attr('height', yScale(columnExtent[0]) - yScale(columnExtent[1]))
+                            .attr('fill', '#ffebee');
 
-                // Draw upper quartile (75-100%)
-                svg.append('rect')
-                    .attr('x', columnIndex * columnWidth)
-                    .attr('y', yScale(max))
-                    .attr('width', columnWidth)
-                    .attr('height', yScale(q3) - yScale(max))
-                    .attr('fill', '#e0e0e0');
-
-                // Draw IQR rectangle (25-75%)
-                svg.append('rect')
-                    .attr('x', columnIndex * columnWidth)
-                    .attr('y', yScale(q3))
-                    .attr('width', columnWidth)
-                    .attr('height', yScale(q1) - yScale(q3))
-                    .attr('fill', '#999999');
-
-                // Draw mean line
-                svg.append('line')
-                    .attr('x1', columnIndex * columnWidth)
-                    .attr('x2', (columnIndex + 1) * columnWidth)
-                    .attr('y1', yScale(mean))
-                    .attr('y2', yScale(mean))
-                    .attr('stroke', '#007bff')
-                    .attr('stroke-width', 2);
+                        // Draw mean line for valid values
+                        const mean = d3.mean(validValues);
+                        svg.append('line')
+                            .attr('x1', columnIndex * columnWidth)
+                            .attr('x2', (columnIndex + 1) * columnWidth)
+                            .attr('y1', yScale(mean))
+                            .attr('y2', yScale(mean))
+                            .attr('stroke', '#007bff')
+                            .attr('stroke-width', 2);
+                    } else {
+                        // If no valid values, draw error tint for full height
+                        svg.append('rect')
+                            .attr('x', columnIndex * columnWidth)
+                            .attr('y', 0)
+                            .attr('width', columnWidth)
+                            .attr('height', innerHeight)
+                            .attr('fill', '#ffebee');
+                    }
+                }
             });
 
             // Add y-axis
