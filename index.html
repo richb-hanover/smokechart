@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Column Distribution Plot</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        #column-plot {
+            width: 100%;
+            height: 600px;
+        }
+        .error {
+            color: #dc3545;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #f8d7da;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Column Distribution Plot</h1>
+        <div id="column-plot"></div>
+    </div>
+
+    <script>
+        function createColumnPlot(data, {
+            width = 800,
+            height = 600,
+            margin = { top: 40, right: 40, bottom: 40, left: 60 },
+            container = '#column-plot'
+        } = {}) {
+            // Clear previous chart
+            d3.select(container).selectAll("*").remove();
+
+            // Calculate inner dimensions
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+            
+            // Calculate column width
+            const columnWidth = innerWidth / data.length;
+
+            // Create SVG container
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Find the extent of values
+            const allValues = data.flat();
+            const valueExtent = d3.extent(allValues);
+            
+            // Create scale for y-axis
+            const yScale = d3.scaleLinear()
+                .domain([valueExtent[0] - 1, valueExtent[1] + 1])
+                .range([innerHeight, 0]);
+
+            // For each column of data
+            data.forEach((column, columnIndex) => {
+                // Calculate statistics
+                const mean = d3.mean(column);
+                const sortedValues = [...column].sort((a, b) => a - b);
+                const q1 = d3.quantile(sortedValues, 0.25);
+                const q3 = d3.quantile(sortedValues, 0.75);
+                const min = sortedValues[0];
+                const max = sortedValues[sortedValues.length - 1];
+                
+                // Draw lower quartile (0-25%)
+                svg.append('rect')
+                    .attr('x', columnIndex * columnWidth)
+                    .attr('y', yScale(q1))
+                    .attr('width', columnWidth)
+                    .attr('height', yScale(min) - yScale(q1))
+                    .attr('fill', '#e0e0e0');
+
+                // Draw upper quartile (75-100%)
+                svg.append('rect')
+                    .attr('x', columnIndex * columnWidth)
+                    .attr('y', yScale(max))
+                    .attr('width', columnWidth)
+                    .attr('height', yScale(q3) - yScale(max))
+                    .attr('fill', '#e0e0e0');
+
+                // Draw IQR rectangle (25-75%)
+                svg.append('rect')
+                    .attr('x', columnIndex * columnWidth)
+                    .attr('y', yScale(q3))
+                    .attr('width', columnWidth)
+                    .attr('height', yScale(q1) - yScale(q3))
+                    .attr('fill', '#999999');
+
+                // Draw mean line
+                svg.append('line')
+                    .attr('x1', columnIndex * columnWidth)
+                    .attr('x2', (columnIndex + 1) * columnWidth)
+                    .attr('y1', yScale(mean))
+                    .attr('y2', yScale(mean))
+                    .attr('stroke', '#007bff')
+                    .attr('stroke-width', 2);
+            });
+
+            // Add y-axis
+            const yAxis = d3.axisLeft(yScale);
+            svg.append('g')
+                .attr('class', 'y-axis')
+                .call(yAxis);
+
+            // Add column indices on x-axis
+            const xScale = d3.scaleLinear()
+                .domain([0, data.length - 1])
+                .range([columnWidth/2, innerWidth - columnWidth/2]);
+
+            const xAxis = d3.axisBottom(xScale)
+                .ticks(data.length)
+                .tickFormat(d => `Column ${d}`);
+
+            svg.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0,${innerHeight})`)
+                .call(xAxis);
+
+            // Add labels
+            svg.append('text')
+                .attr('x', innerWidth / 2)
+                .attr('y', innerHeight + margin.bottom - 5)
+                .attr('text-anchor', 'middle')
+                .text('Columns');
+
+            svg.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -innerHeight / 2)
+                .attr('y', -margin.left + 15)
+                .attr('text-anchor', 'middle')
+                .text('Values');
+        }
+
+        // Load and parse data from JSON file
+        async function loadData() {
+            try {
+                const response = await fetch('pings2.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const jsonData = await response.json();
+                updateChart(jsonData);
+            } catch (error) {
+                console.error('Error loading data:', error);
+                d3.select('#column-plot')
+                    .append('div')
+                    .attr('class', 'error')
+                    .text('Error loading pings2.json. Please ensure the file exists and contains valid JSON data.');
+            }
+        }
+
+        // Update chart
+        function updateChart(data) {
+            createColumnPlot(data, {
+                width: document.getElementById('column-plot').offsetWidth,
+                height: 600
+            });
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            loadData();
+        });
+
+        // Initial load
+        loadData();
+    </script>
+</body>
+</html>
