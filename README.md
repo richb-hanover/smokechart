@@ -18,12 +18,18 @@ with the blue bar.
 The basics of this Javascript were generated
 by a friendly session with Claude.ai.
 
+## Sample chart
+
+![sample chart](./media/sample-smokechart.png)
+
 ## Data representation
 
 The data provided to the chart function is an array of arrays.
 Each individual array consists of an arbitrary number of samples:
 the array "row" represents one hour of samples.
 Missing samples are represented as NaN or "0/0" in the array.
+
+The _pings2.json_ file has actual data.
 
 ## Testing
 
