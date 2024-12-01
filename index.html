@@ -3,53 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>24-Hour Distribution Plot</title>
+    <title>Distribution Plot</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>24-Hour Distribution Plot</h1>
+        <h1>Distribution Plot</h1>
+        <div id="time-range" class="time-range"></div>
         <div id="column-plot"></div>
+        <div class="nav-buttons">
+            <button id="prevButton" class="nav-button prev">Previous</button>
+            <button id="nextButton" class="nav-button next">Later</button>
+        </div>
     </div>
 
-    <script src="./createcolumnplot.js"></script>
-
-    <script>
-        
-        // Load and parse data from JSON file
-        async function loadData() {
-            try {
-                const response = await fetch('ping.json');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const jsonData = await response.json();
-                updateChart(jsonData);
-            } catch (error) {
-                console.error('Error loading data:', error);
-                d3.select('#column-plot')
-                    .append('div')
-                    .attr('class', 'error')
-                    .text('Error loading pings2.json. Please ensure the file exists and contains valid JSON data.');
-            }
-        }
-
-        // Update chart with container dimensions
-        function updateChart(data) {
-            const container = document.getElementById('column-plot');
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            createColumnPlot(data, { width, height });
-        }
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            loadData();
-        });
-
-        // Initial load
-        loadData();
-    </script>
+    <script src="chart.js"></script>
+    <script src="navigation.js"></script>
 </body>
 </html>
