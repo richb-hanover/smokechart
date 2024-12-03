@@ -8,14 +8,18 @@ function createColumnPlot(displayData, startIndex, {
     // Get container dimensions
     const containerDiv = document.querySelector(container);
     const width = containerDiv.clientWidth;
-    const height = Math.min(window.innerHeight * 0.8, 600); // 80% of window height or 600px
+    const height = Math.min(window.innerHeight * 0.8, 600);
     const margin = { 
-        top: Math.max(20, height * 0.067),     // At least 20px, or 6.7% of height
-        right: Math.max(20, width * 0.033),    // At least 20px, or 3.3% of width
-        bottom: Math.max(30, height * 0.1),    // At least 30px, or 10% of height
-        left: Math.max(40, width * 0.05)       // At least 40px, or 5% of width
+        top: Math.max(20, height * 0.067),
+        right: Math.max(20, width * 0.033),
+        bottom: Math.max(30, height * 0.1),
+        left: Math.max(40, width * 0.05)
     };
     
+    // Calculate title font size - expose this for use by the buttons
+    const titleFontSize = `${Math.max(12, Math.min(16, width * 0.013))}px`;
+    containerDiv.style.setProperty('--title-font-size', titleFontSize);
+
     // Calculate inner dimensions
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
@@ -31,15 +35,18 @@ function createColumnPlot(displayData, startIndex, {
         .append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
 
+    // Find the date from the first available data row
+    const date = displayData.find(row => row)?.[0] || 'Unknown Date';
+
     // Add title
     svg.append('text')
         .attr('x', innerWidth / 2)
         .attr('y', -margin.top / 2)
         .attr('text-anchor', 'middle')
         .attr('class', 'chart-title')
-        .style('font-size', `${Math.max(12, Math.min(16, width * 0.013))}px`)
+        .style('font-size', titleFontSize)
         .style('font-weight', 'bold')
-        .text(`Response Times for ${displayData[0]?.[0] || 'No Data'}`);
+        .text(`Response Times for ${date}`);
 
     // Create tooltip div
     const tooltip = d3.select("body").append("div")
@@ -87,7 +94,7 @@ function createColumnPlot(displayData, startIndex, {
                 medium: '#d0d0d0',
                 dark: '#c0c0c0',
                 center: '#999999',
-                medianLine: hasError ? '#ff0000' : '#007bff'
+                medianLine: hasError ? '#cc4c4c' : '#007bff'
             };
 
             if (numericValues.length > 0) {

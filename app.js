@@ -33,22 +33,45 @@ async function loadAndPlotData() {
         const dates = Object.keys(groupedData).sort();
         let currentDateIndex = 0;
 
-        // Initial plot
-        createResponsivePlot(groupedData, dates, currentDateIndex);
-
-        // Add window resize handler
-        window.addEventListener('resize', () => {
-            createResponsivePlot(groupedData, dates, currentDateIndex);
-        });
-
-        // Add navigation buttons
-        const controlsDiv = document.createElement('div');
-        controlsDiv.style.textAlign = 'center';
-        controlsDiv.style.marginTop = '10px';
+        // Create container for the buttons and title
+        const headerDiv = document.createElement('div');
+        headerDiv.style.display = 'flex';
+        headerDiv.style.justifyContent = 'space-between';
+        headerDiv.style.alignItems = 'center';
+        headerDiv.style.width = '100%';
+        headerDiv.style.maxWidth = '1200px';
+        headerDiv.style.margin = '0 auto 10px auto';
+        headerDiv.style.padding = '0 10px';
+        
+        // Create button styles
+        const buttonStyle = `
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            font-size: var(--title-font-size);
+            padding: 5px;
+            color: #666;
+        `;
 
         const previousButton = document.createElement('button');
         previousButton.id = 'previous-button';
-        previousButton.textContent = 'Previous Day';
+        previousButton.textContent = '← Previous Day';
+        previousButton.style.cssText = buttonStyle;
+
+        const laterButton = document.createElement('button');
+        laterButton.id = 'later-button';
+        laterButton.textContent = 'Next Day →';
+        laterButton.style.cssText = buttonStyle;
+
+        // Add buttons to header
+        headerDiv.appendChild(previousButton);
+        headerDiv.appendChild(laterButton);
+
+        // Add the header before the plot container
+        const container = document.querySelector('#column-plot');
+        container.parentNode.insertBefore(headerDiv, container);
+
         previousButton.onclick = () => {
             if (currentDateIndex > 0) {
                 currentDateIndex--;
@@ -57,9 +80,6 @@ async function loadAndPlotData() {
             updateButtonStates();
         };
 
-        const laterButton = document.createElement('button');
-        laterButton.id = 'later-button';
-        laterButton.textContent = 'Next Day';
         laterButton.onclick = () => {
             if (currentDateIndex < dates.length - 1) {
                 currentDateIndex++;
@@ -73,25 +93,26 @@ async function loadAndPlotData() {
             previousButton.disabled = currentDateIndex === 0;
             laterButton.disabled = currentDateIndex === dates.length - 1;
             
+            previousButton.style.visibility = currentDateIndex === 0 ? 'hidden' : 'visible';
+            laterButton.style.visibility = currentDateIndex === dates.length - 1 ? 'hidden' : 'visible';
+            
             previousButton.title = currentDateIndex > 0 ? 
                 `View ${dates[currentDateIndex - 1]}` : '';
             laterButton.title = currentDateIndex < dates.length - 1 ? 
                 `View ${dates[currentDateIndex + 1]}` : '';
         };
 
-        controlsDiv.appendChild(previousButton);
-        controlsDiv.appendChild(laterButton);
-
-        // Add the controls after the chart container
-        const container = document.querySelector('#column-plot');
-        container.parentNode.insertBefore(controlsDiv, container.nextSibling);
-
-        // Set initial button states
+        // Initial plot and button states
+        createResponsivePlot(groupedData, dates, currentDateIndex);
         updateButtonStates();
+
+        // Add window resize handler
+        window.addEventListener('resize', () => {
+            createResponsivePlot(groupedData, dates, currentDateIndex);
+        });
 
     } catch (error) {
         console.error('Error loading the data:', error);
-        // Add error message to the page
         const container = document.querySelector('#column-plot');
         container.innerHTML = `<div style="color: red; padding: 20px;">
             Error loading data: ${error.message}
@@ -101,7 +122,7 @@ async function loadAndPlotData() {
 
 // Create necessary HTML elements
 document.addEventListener('DOMContentLoaded', () => {
-    // Create container for the plot if it doesn't exist
+    // Create container for the plot
     const container = document.createElement('div');
     container.id = 'column-plot';
     container.style.width = '100%';
