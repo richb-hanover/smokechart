@@ -1,28 +1,21 @@
-// Main plotting function
-function createColumnPlot(data, startIndex, {
-    width,
-    height,
-    margin = { top: 40, right: 40, bottom: 40, left: 60 },
+function createColumnPlot(displayData, startIndex, {
     container = '#column-plot'
 } = {}) {
     // Clear previous chart and tooltips
     d3.select(container).selectAll("*").remove();
     d3.select("body").selectAll(".tooltip").remove();
 
-    // Get data for display window
-    const displayData = data.slice(startIndex, startIndex + 24);
+    // Get container dimensions
+    const containerDiv = document.querySelector(container);
+    const width = containerDiv.clientWidth;
+    const height = Math.min(window.innerHeight * 0.8, 600); // 80% of window height or 600px
+    const margin = { 
+        top: Math.max(20, height * 0.067),     // At least 20px, or 6.7% of height
+        right: Math.max(20, width * 0.033),    // At least 20px, or 3.3% of width
+        bottom: Math.max(30, height * 0.1),    // At least 30px, or 10% of height
+        left: Math.max(40, width * 0.05)       // At least 40px, or 5% of width
+    };
     
-    // Log the date we're displaying
-    const currentDay = displayData.find(row => row)?.[0];
-    console.log('Displaying data for date:', currentDay);
-    
-    // Log each row that has data
-    displayData.forEach((row, index) => {
-        if (row) {
-            console.log('Hour:', row[1].substring(0, 2), 'Data:', row);
-        }
-    });
-
     // Calculate inner dimensions
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
@@ -44,9 +37,9 @@ function createColumnPlot(data, startIndex, {
         .attr('y', -margin.top / 2)
         .attr('text-anchor', 'middle')
         .attr('class', 'chart-title')
-        .style('font-size', '16px')
+        .style('font-size', `${Math.max(12, Math.min(16, width * 0.013))}px`)
         .style('font-weight', 'bold')
-        .text('24 Hour Latency');
+        .text(`Response Times for ${displayData[0]?.[0] || 'No Data'}`);
 
     // Create tooltip div
     const tooltip = d3.select("body").append("div")
@@ -67,16 +60,6 @@ function createColumnPlot(data, startIndex, {
         return `${date} ${hour}:00`;
     };
 
-    // Initialize hourly data array (24 slots, one for each hour)
-    const hourlyData = new Array(24).fill(null);
-
-    // Organize data by hour
-    displayData.forEach(row => {
-        if (!row) return;
-        const hour = parseInt(row[1].substring(0, 2));
-        hourlyData[hour] = row;
-    });
-
     // Find value extent across all data
     const allValues = displayData
         .flatMap(row => row ? row.slice(2).filter(v => v !== "0/0").map(Number) : [])
@@ -90,7 +73,7 @@ function createColumnPlot(data, startIndex, {
 
     // Draw columns for all 24 hours
     for (let hour = 0; hour < 24; hour++) {
-        const row = hourlyData[hour];
+        const row = displayData[hour];
         const xPos = hour * columnWidth;
 
         if (row) {
@@ -98,18 +81,13 @@ function createColumnPlot(data, startIndex, {
             const numericValues = row.slice(2).filter(v => v !== "0/0").map(Number);
             const hasError = row.slice(2).includes("0/0");
             
-            const colors = hasError ? {
-                outer: '#f5e6e6',
-                light: '#e5d6d6',
-                medium: '#d5c6c6',
-                dark: '#c5b6b6',
-                center: '#a59696'
-            } : {
+            const colors = {
                 outer: '#f0f0f0',
                 light: '#e0e0e0',
                 medium: '#d0d0d0',
                 dark: '#c0c0c0',
-                center: '#999999'
+                center: '#999999',
+                medianLine: hasError ? '#ff0000' : '#007bff'
             };
 
             if (numericValues.length > 0) {
@@ -161,7 +139,7 @@ function createColumnPlot(data, startIndex, {
                     .attr('x2', xPos + columnWidth)
                     .attr('y1', yScale(median))
                     .attr('y2', yScale(median))
-                    .attr('stroke', '#007bff')
+                    .attr('stroke', colors.medianLine)
                     .attr('stroke-width', 2);
             }
         }
@@ -175,8 +153,8 @@ function createColumnPlot(data, startIndex, {
         .on('mousemove', function(event) {
             const [mouseX] = d3.pointer(event);
             const hour = Math.floor(mouseX / columnWidth);
-            if (hour >= 0 && hour < 24 && hourlyData[hour]) {
-                const tooltipText = formatTooltipDate(hourlyData[hour]);
+            if (hour >= 0 && hour < 24 && displayData[hour]) {
+                const tooltipText = formatTooltipDate(displayData[hour]);
                 tooltip.transition()
                     .duration(200)
                     .style("opacity", .9);
@@ -197,7 +175,8 @@ function createColumnPlot(data, startIndex, {
     const yAxis = d3.axisLeft(yScale);
     svg.append('g')
         .attr('class', 'y-axis')
-        .call(yAxis);
+        .call(yAxis)
+        .style('font-size', `${Math.max(10, Math.min(12, width * 0.01))}px`);
 
     // X-axis with fixed 24-hour labels
     const xScale = d3.scaleLinear()
@@ -213,37 +192,15 @@ function createColumnPlot(data, startIndex, {
         .attr('transform', `translate(0,${innerHeight})`)
         .call(xAxis)
         .selectAll("text")
-        .style("text-anchor", "middle");
+        .style("text-anchor", "middle")
+        .style('font-size', `${Math.max(10, Math.min(12, width * 0.01))}px`);
 
-    // Get the date from the first available data point
-    const firstDataPoint = displayData.find(row => row);
-    const date = firstDataPoint ? firstDataPoint[0] : '';
-
-    // Add labels
-    svg.append('text')
-        .attr('x', innerWidth / 2)
-        .attr('y', innerHeight + margin.bottom - 5)
-        .attr('text-anchor', 'middle')
-        .text(date);
-
+    // Add y-axis label
     svg.append('text')
         .attr('transform', 'rotate(-90)')
         .attr('x', -innerHeight / 2)
         .attr('y', -margin.left + 15)
         .attr('text-anchor', 'middle')
+        .style('font-size', `${Math.max(10, Math.min(12, width * 0.01))}px`)
         .text('Response Time (ms)');
-
-    // Update navigation buttons state
-    const previousButton = document.querySelector('#previous-button');
-    const laterButton = document.querySelector('#later-button');
-    
-    if (previousButton) {
-        const hasPreviousData = startIndex > 0 && data[startIndex - 1] !== undefined;
-        previousButton.disabled = !hasPreviousData;
-    }
-    
-    if (laterButton) {
-        const hasLaterData = startIndex + 24 < data.length && data[startIndex + 24] !== undefined;
-        laterButton.disabled = !hasLaterData;
-    }
 }

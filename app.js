@@ -1,3 +1,11 @@
+// Function to create a responsive plot that updates on window resize
+function createResponsivePlot(groupedData, dates, currentDateIndex) {
+    const date = dates[currentDateIndex];
+    createColumnPlot(groupedData[date], 0, {
+        container: '#column-plot'
+    });
+}
+
 // Function to load and process data
 async function loadAndPlotData() {
     try {
@@ -25,13 +33,12 @@ async function loadAndPlotData() {
         const dates = Object.keys(groupedData).sort();
         let currentDateIndex = 0;
 
-        // Initial plot with first date's data
-        const initialDate = dates[currentDateIndex];
-        console.log('Starting with date:', initialDate);
-        createColumnPlot(groupedData[initialDate], 0, {
-            width: 1200,
-            height: 600,
-            container: '#column-plot'
+        // Initial plot
+        createResponsivePlot(groupedData, dates, currentDateIndex);
+
+        // Add window resize handler
+        window.addEventListener('resize', () => {
+            createResponsivePlot(groupedData, dates, currentDateIndex);
         });
 
         // Add navigation buttons
@@ -45,13 +52,7 @@ async function loadAndPlotData() {
         previousButton.onclick = () => {
             if (currentDateIndex > 0) {
                 currentDateIndex--;
-                const newDate = dates[currentDateIndex];
-                console.log('Showing date:', newDate);
-                createColumnPlot(groupedData[newDate], 0, {
-                    width: 1200,
-                    height: 600,
-                    container: '#column-plot'
-                });
+                createResponsivePlot(groupedData, dates, currentDateIndex);
             }
             updateButtonStates();
         };
@@ -62,13 +63,7 @@ async function loadAndPlotData() {
         laterButton.onclick = () => {
             if (currentDateIndex < dates.length - 1) {
                 currentDateIndex++;
-                const newDate = dates[currentDateIndex];
-                console.log('Showing date:', newDate);
-                createColumnPlot(groupedData[newDate], 0, {
-                    width: 1200,
-                    height: 600,
-                    container: '#column-plot'
-                });
+                createResponsivePlot(groupedData, dates, currentDateIndex);
             }
             updateButtonStates();
         };
@@ -78,7 +73,6 @@ async function loadAndPlotData() {
             previousButton.disabled = currentDateIndex === 0;
             laterButton.disabled = currentDateIndex === dates.length - 1;
             
-            // Optional: Add date to button labels
             previousButton.title = currentDateIndex > 0 ? 
                 `View ${dates[currentDateIndex - 1]}` : '';
             laterButton.title = currentDateIndex < dates.length - 1 ? 
@@ -108,11 +102,12 @@ async function loadAndPlotData() {
 // Create necessary HTML elements
 document.addEventListener('DOMContentLoaded', () => {
     // Create container for the plot if it doesn't exist
-    if (!document.querySelector('#column-plot')) {
-        const container = document.createElement('div');
-        container.id = 'column-plot';
-        document.body.appendChild(container);
-    }
+    const container = document.createElement('div');
+    container.id = 'column-plot';
+    container.style.width = '100%';
+    container.style.maxWidth = '1200px';
+    container.style.margin = '0 auto';
+    document.body.appendChild(container);
     
     // Load and plot the data
     loadAndPlotData();
