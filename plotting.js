@@ -12,6 +12,17 @@ function createColumnPlot(data, startIndex, {
     // Get data for display window
     const displayData = data.slice(startIndex, startIndex + 24);
     
+    // Log the date we're displaying
+    const currentDay = displayData.find(row => row)?.[0];
+    console.log('Displaying data for date:', currentDay);
+    
+    // Log each row that has data
+    displayData.forEach((row, index) => {
+        if (row) {
+            console.log('Hour:', row[1].substring(0, 2), 'Data:', row);
+        }
+    });
+
     // Calculate inner dimensions
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
@@ -50,15 +61,10 @@ function createColumnPlot(data, startIndex, {
         .style("text-align", "center");
 
     // Format timestamp for tooltip
-    const formatTooltipDate = (timestamp) => {
-        const date = new Date(timestamp);
-        const formattedDate = date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-        const hour = date.getHours().toString().padStart(2, '0');
-        return `${formattedDate} ${hour}:00`;
+    const formatTooltipDate = (row) => {
+        const date = row[0];
+        const hour = row[1].substring(0, 2);
+        return `${date} ${hour}:00`;
     };
 
     // Initialize hourly data array (24 slots, one for each hour)
@@ -67,14 +73,13 @@ function createColumnPlot(data, startIndex, {
     // Organize data by hour
     displayData.forEach(row => {
         if (!row) return;
-        const timestamp = new Date(row[0]);
-        const hour = timestamp.getHours();
+        const hour = parseInt(row[1].substring(0, 2));
         hourlyData[hour] = row;
     });
 
     // Find value extent across all data
     const allValues = displayData
-        .flatMap(row => row ? row.slice(1).filter(v => v !== "0/0").map(Number) : [])
+        .flatMap(row => row ? row.slice(2).filter(v => v !== "0/0").map(Number) : [])
         .filter(v => !isNaN(v));
     const valueExtent = d3.extent(allValues);
     
@@ -90,8 +95,8 @@ function createColumnPlot(data, startIndex, {
 
         if (row) {
             // Process and draw data for this hour
-            const numericValues = row.slice(1).filter(v => v !== "0/0").map(Number);
-            const hasError = row.slice(1).includes("0/0");
+            const numericValues = row.slice(2).filter(v => v !== "0/0").map(Number);
+            const hasError = row.slice(2).includes("0/0");
             
             const colors = hasError ? {
                 outer: '#f5e6e6',
@@ -171,7 +176,7 @@ function createColumnPlot(data, startIndex, {
             const [mouseX] = d3.pointer(event);
             const hour = Math.floor(mouseX / columnWidth);
             if (hour >= 0 && hour < 24 && hourlyData[hour]) {
-                const tooltipText = formatTooltipDate(hourlyData[hour][0]);
+                const tooltipText = formatTooltipDate(hourlyData[hour]);
                 tooltip.transition()
                     .duration(200)
                     .style("opacity", .9);
@@ -212,19 +217,14 @@ function createColumnPlot(data, startIndex, {
 
     // Get the date from the first available data point
     const firstDataPoint = displayData.find(row => row);
-    const date = firstDataPoint ? new Date(firstDataPoint[0]) : new Date();
-    const formattedDate = date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+    const date = firstDataPoint ? firstDataPoint[0] : '';
 
     // Add labels
     svg.append('text')
         .attr('x', innerWidth / 2)
         .attr('y', innerHeight + margin.bottom - 5)
         .attr('text-anchor', 'middle')
-        .text(formattedDate);
+        .text(date);
 
     svg.append('text')
         .attr('transform', 'rotate(-90)')
